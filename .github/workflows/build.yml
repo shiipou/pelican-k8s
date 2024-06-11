@@ -25,6 +25,10 @@ jobs:
         with:
           repository: 'pelican-dev/panel'
 
+      - name: Add mysql client
+        run: |
+          echo "RUN apk add --no-cache mysql-client" >> Dockerfile
+
       - name: Docker metadata
         id: docker_meta
         uses: docker/metadata-action@v5
