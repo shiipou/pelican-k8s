@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pelican-db
+spec:
+  selector:
+    matchLabels:
+      app: pelican-db
+  serviceName: pelican-db
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pelican-db
+    spec:
+      containers:
+      - name: pelican-db
+        image: mariadb:11.4
+        envFrom:
+        - secretRef:
+            name: mysql-config
+        ports:
+        - containerPort: 3306
+          name: db
+        # resources:
+        #   limits:
+        #     memory: "512Mi"
+        #     cpu: "1000m"
+        volumeMounts:
+        - name: pelican-db
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: pelican-db
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 4Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pelican-db
+spec:
+  selector:
+    app: pelican-db
+  ports:
+  - port: 3306
+    targetPort: 3306

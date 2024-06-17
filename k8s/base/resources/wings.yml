@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: wings
+spec:
+  selector:
+    matchLabels:
+      app: wings
+  serviceName: wings
+  replicas: 9
+  template:
+    metadata:
+      labels:
+        app: wings
+    spec:
+      initContainers:
+      - name: waiting-config
+        image: curlimages/curl
+        securityContext:
+          runAsUser: 0
+        command:
+        - /bin/ash
+        - -c
+        args:
+        - |
+          echo "Waiting for operator to create config file in /etc/pelican/config.yml"
+          dir_content="$(ls -A /etc/pelican/)"
+          while [ -z "$dir_content" ] || [ "$dir_content" = "lost+found" ]; do
+            dir_content="$(ls -A /etc/pelican/)"
+          done
+          echo "Done"
+        volumeMounts:
+        - name: wings
+          mountPath: /etc/pelican
+      containers:
+      - name: wings
+        image: ghcr.io/pelican-dev/wings:v1.0.0-beta3
+        env:
+          - name: DOCKER_HOST
+            value: tcp://localhost:2375
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 2022
+          name: ssh
+        volumeMounts:
+        - name: wings
+          mountPath: /etc/pelican
+      - name: docker
+        image: docker:dind
+        securityContext:
+          runAsUser: 0
+          privileged: true
+        command: ["dockerd", "--host", "tcp://127.0.0.1:2375"]
+        volumeMounts:
+        - name: wings
+          subPath: docker
+          mountPath: /var/lib/docker
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+                - key: "app"
+                  operator: In
+                  values:
+                  - cool-app
+            topologyKey: "kubernetes.io/hostname"
+  volumeClaimTemplates:
+  - metadata:
+      name: wings
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wings
+spec:
+  selector:
+    app: wings
+  ports:
+  - port: 80
+    name: http
+    targetPort: http
+  - port: 2022
+    name: ssh
+    targetPort: ssh

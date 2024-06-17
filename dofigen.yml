@@ -1,0 +1,17 @@
+# WIP
+builders:
+- name: builder
+  image: curlimages/curl
+  script:
+    - curl -L -o /usr/local/bin/wings "https://github.com/pelican-dev/wings/releases/latest/download/wings_linux_${ARCH}"
+    - chmod +x /usr/local/bin/wings
+image: scratch
+workdir: /etc/pelican
+artifacts:
+- builder: builder
+  source: "/usr/local/bin/wings"
+  destination: "/bin/"
+entrypoint:
+- /bin/wings
+ignores:
+- "**"

@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- ../../base
+- resources/ingress.yml
+
+patches:
+  - path: resources/wings.yml
+
+configMapGenerator:
+  - name: pelican-config
+    envs:
+      - config/panel.env
+    behavior: merge
+
+secretGenerator:
+  - name: mysql-config
+    envs:
+      - config/mysql.env
+    behavior: merge

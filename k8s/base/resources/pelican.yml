@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pelican
+spec:
+  selector:
+    matchLabels:
+      app: pelican
+  serviceName: pelican
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pelican
+    spec:
+      initContainers:
+      - name: downloader
+        image: curlimages/curl
+        securityContext:
+          runAsUser: 0
+        command:
+          - /bin/ash
+          - -c
+        args:
+          - |
+            dir_content=$(ls -A /app)
+            if [ -z "$dir_content" ] || [ "$dir_content" = "lost+found" ]; then
+              echo "Downloading panel.tar.gz..."
+              cd /app
+              curl -Lo panel.tar.gz https://github.com/pelican-dev/panel/releases/latest/download/panel.tar.gz
+              tar -xvzf panel.tar.gz
+              ls -lia
+              rm panel.tar.gz
+              chown -R 100:100 /app
+            fi
+            echo "Done"
+        volumeMounts:
+        - name: pelican
+          mountPath: /app
+      containers:
+      - name: pelican
+        image: ghcr.io/shiipou/pelican-k8s/panel
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+        env:
+          - name: DB_HOST
+            valueFrom:
+              secretKeyRef:
+                name: mysql-config
+                key: MARIADB_HOST
+          - name: DB_PORT
+            valueFrom:
+              secretKeyRef:
+                name: mysql-config
+                key: MARIADB_PORT
+          - name: DB_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: mysql-config
+                key: MARIADB_DATABASE
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: mysql-config
+                key: MARIADB_USER
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: mysql-config
+                key: MARIADB_PASSWORD
+        envFrom:
+          - configMapRef:
+              name: pelican-config
+        volumeMounts:
+        - name: pelican
+          subPath: var
+          mountPath: /app/var
+        - name: pelican
+          subPath: storage
+          mountPath: /app/storage
+  volumeClaimTemplates:
+  - metadata:
+      name: pelican
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pelican
+spec:
+  selector:
+    app: pelican
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
