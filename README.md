@@ -15,6 +15,7 @@ On your k8s cluster, be sure to have thoses dependencies installed and configure
 You can adjust your settings in the directory `k8s/overlays/production/config/` and change any `<VARIABLE>` with your own values.
 
 **! Important !**
+
 In `k8s/overlays/production/resources/wings.yaml`, change the value of `spec.replicas` to the number of nodes you have.
 
 In the file `k8s/overlays/production/resources/ingress.yaml`, change the value of `spec.rules.host` with your own domain name.
